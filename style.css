@@ -1,0 +1,34 @@
+/* General Resets */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; color: #111b21; }
+.hidden { display: none !important; }
+
+/* Setup Screen */
+.container { max-width: 600px; margin: 50px auto; text-align: center; padding: 20px; }
+.container h1 { color: #005c4b; margin-bottom: 10px; }
+.card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 20px; }
+.upload-btn, button { background-color: #00a884; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; display: inline-block; }
+.upload-btn:hover, button:hover { background-color: #008f6f; }
+select { padding: 10px; font-size: 16px; margin-bottom: 20px; width: 100%; border-radius: 5px; border: 1px solid #ccc; }
+#file-name { margin-top: 15px; font-style: italic; color: #667781; }
+
+/* Chat Screen */
+#chat-screen { display: flex; flex-direction: column; height: 100vh; background-color: #efeae2; }
+.chat-header { background-color: #f0f2f5; padding: 10px 20px; display: flex; align-items: center; border-bottom: 1px solid #d1d7db; position: sticky; top: 0; z-index: 100; }
+.chat-header h2 { margin-left: 20px; font-size: 18px; }
+#back-btn { background: none; color: #005c4b; border: none; font-size: 16px; cursor: pointer; padding: 0; }
+
+/* Chat Container & Bubbles */
+#chat-container { flex: 1; overflow-y: auto; padding: 20px 5%; display: flex; flex-direction: column; }
+.message-bubble { max-width: 75%; padding: 6px 7px 8px 9px; border-radius: 7.5px; margin-bottom: 8px; position: relative; box-shadow: 0 1px 0.5px rgba(11,20,26,.13); line-height: 1.4; word-wrap: break-word; }
+.message-in { align-self: flex-start; background-color: #ffffff; border-top-left-radius: 0; }
+.message-out { align-self: flex-end; background-color: #d9fdd3; border-top-right-radius: 0; }
+.sys-message { align-self: center; background-color: rgba(255, 255, 255, 0.9); font-size: 12.5px; color: #54656f; padding: 5px 12px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 0.5px rgba(11,20,26,.13); max-width: 90%; text-align: center; }
+
+/* Message Contents */
+.sender-name { font-size: 12.5px; font-weight: bold; color: #029688; margin-bottom: 2px; }
+.message-text { font-size: 14.2px; white-space: pre-wrap; }
+.message-time { font-size: 11px; color: #667781; float: right; margin: 10px 0 -5px 10px; }
+
+/* Media Attachments */
+.media-attachment { max-width: 100%; border-radius: 5px; margin-bottom: 5px; max-height: 300px; display: block; }

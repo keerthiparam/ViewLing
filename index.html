@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Chat Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- JSZip for handling .zip files entirely in the browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <!-- SETUP SCREEN -->
+    <div id="setup-screen" class="container">
+        <h1>WhatsApp Chat Visualizer</h1>
+        <p>Your chat never leaves your computer. Everything is processed locally in your browser.</p>
+        
+        <div class="card">
+            <label for="file-input" class="upload-btn">Choose .txt or .zip file</label>
+            <input type="file" id="file-input" accept=".txt, .zip" hidden>
+            <p id="file-name"></p>
+        </div>
+
+        <div id="loading" class="hidden">Processing file, please wait...</div>
+
+        <div id="user-selection" class="hidden card">
+            <p>Who are you in this chat? (To align your messages to the right)</p>
+            <select id="user-selector"></select>
+            <button id="render-btn">View Chat</button>
+        </div>
+    </div>
+
+    <!-- CHAT SCREEN -->
+    <div id="chat-screen" class="hidden">
+        <div class="chat-header">
+            <button id="back-btn">← Back</button>
+            <h2 id="chat-title">Chat</h2>
+        </div>
+        
+        <div id="chat-container">
+            <!-- Messages will be injected here -->
+            <div id="scroll-anchor"></div> <!-- Used for infinite scrolling -->
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
