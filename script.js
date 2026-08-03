@@ -26,10 +26,11 @@ backBtn.addEventListener('click', () => location.reload());
 // --- Core Logic ---
 
 async function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+    // Convert to array so we can sort them
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
 
-    fileNameDisplay.textContent = `Selected: ${file.name}`;
+    fileNameDisplay.textContent = `Selected: ${files.length} file(s)`;
     loadingText.classList.remove('hidden');
     userSelectionDiv.classList.add('hidden');
 
@@ -37,23 +38,26 @@ async function handleFileUpload(event) {
     uniqueSenders.clear();
     mediaMap = {};
 
+    // Sort files alphabetically so "Chat (1).zip" comes after "Chat.zip"
+    files.sort((a, b) => a.name.localeCompare(b.name));
+
     try {
-        if (file.name.endsWith('.txt')) {
-            const text = await file.text();
-            parseChatText(text);
-        } else if (file.name.endsWith('.zip')) {
-            await handleZipFile(file);
-        } else {
-            alert("Please upload a .txt or .zip file.");
+        // Loop through and process all selected files
+        for (const file of files) {
+            if (file.name.endsWith('.txt')) {
+                const text = await file.text();
+                parseChatText(text);
+            } else if (file.name.endsWith('.zip')) {
+                await handleZipFile(file);
+            }
         }
     } catch (error) {
         console.error(error);
-        alert("Error processing file. See console for details.");
+        alert("Error processing files. See console for details.");
     }
 
     loadingText.classList.add('hidden');
     
-    // Populate dropdown with found senders
     userSelector.innerHTML = '<option value="">(None / System Messages Only)</option>';
     uniqueSenders.forEach(sender => {
         const option = document.createElement('option');
@@ -145,7 +149,7 @@ function startRenderingChat() {
 }
 
 function renderNextChunk() {
-    if (currentRenderIndex >= parsedMessages.length) return; // Done rendering
+    if (currentRenderIndex >= parsedMessages.length) return; 
 
     const myUsername = userSelector.value;
     const fragment = document.createDocumentFragment();
@@ -154,6 +158,19 @@ function renderNextChunk() {
     
     for (let i = currentRenderIndex; i < endIndex; i++) {
         const msg = parsedMessages[i];
+        
+        // --- NEW: DATE SEPARATOR LOGIC ---
+        // Check the previous message. If the date is different (or it's the first message), show the Date Pill
+        const prevMsg = i > 0 ? parsedMessages[i - 1] : null;
+        if (!prevMsg || prevMsg.date !== msg.date) {
+            if (msg.date) { // Ensure it actually has a date
+                const dateDiv = document.createElement('div');
+                dateDiv.className = 'date-separator';
+                dateDiv.textContent = msg.date;
+                fragment.appendChild(dateDiv);
+            }
+        }
+        // ---------------------------------
         
         if (msg.type === 'system') {
             const sysDiv = document.createElement('div');
@@ -167,7 +184,6 @@ function renderNextChunk() {
         const bubble = document.createElement('div');
         bubble.className = `message-bubble ${isMe ? 'message-out' : 'message-in'}`;
 
-        // Sender Name (only show if it's not you)
         if (!isMe) {
             const senderSpan = document.createElement('div');
             senderSpan.className = 'sender-name';
@@ -175,11 +191,9 @@ function renderNextChunk() {
             bubble.appendChild(senderSpan);
         }
 
-        // Check for attached media extracted from zip
         let textContent = msg.message;
         for (const [filename, blobUrl] of Object.entries(mediaMap)) {
             if (msg.message.includes(filename)) {
-                // If message contains the filename, replace it with an image/video tag
                 const mediaExt = filename.split('.').pop().toLowerCase();
                 let mediaTag;
                 
@@ -204,7 +218,6 @@ function renderNextChunk() {
             }
         }
 
-        // Message Text
         if (textContent) {
             const textSpan = document.createElement('div');
             textSpan.className = 'message-text';
@@ -212,7 +225,6 @@ function renderNextChunk() {
             bubble.appendChild(textSpan);
         }
         
-        // Time Stamp
         const timeSpan = document.createElement('div');
         timeSpan.className = 'message-time';
         timeSpan.textContent = msg.time;
@@ -221,7 +233,6 @@ function renderNextChunk() {
         fragment.appendChild(bubble);
     }
 
-    // Insert chunk BEFORE the scroll anchor
     chatContainer.insertBefore(fragment, scrollAnchor);
     currentRenderIndex = endIndex;
 }
