@@ -6,7 +6,7 @@
 - [ ] Edited messages (<This message was edited>)
 - [ ] Pinned messages (20/04/26, 07:21 - You pinned a message)
 - [ ] Search messages
-- [ ] Messages to yourself
+- [x] Messages to yourself
 - [ ] Link support
 - [ ] .pdf files
 - [ ] .vcf files

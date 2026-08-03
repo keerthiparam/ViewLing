@@ -68,11 +68,56 @@ async function handleFileUpload(event) {
                 await handleZipFile(file, chatObj);
             }
             
-            if (chatObj.messages.length > 0) chats.push(chatObj);
+            // Smart guess 1: Look at the file name
+            if (chatObj.senders.size === 1) {
+                chatObj.myUsername = Array.from(chatObj.senders)[0];
+            } else if (chatObj.senders.size === 2) {
+                for (let sender of chatObj.senders) {
+                    if (!chatObj.name.toLowerCase().includes(sender.toLowerCase())) {
+                        chatObj.myUsername = sender;
+                        break;
+                    }
+                }
+            }
+            
+            // Add it to the sidebar even if it's empty, so we know it didn't silently fail
+            if (chatObj.messages.length === 0) {
+                chatObj.messages.push({ type: 'system', date: 'N/A', time: '', message: '⚠️ Could not read messages. The date/time format in this file is not recognized.' });
+            }
+            chats.push(chatObj);
         } catch (error) {
             console.error(`Error processing ${file.name}:`, error);
         }
     }
+
+    // --- NEW: THE "MAJORITY RULE" ---
+    // If multiple chats are uploaded, find the sender that appears in most of them!
+    if (chats.length > 1) {
+        let senderCounts = {};
+        chats.forEach(chat => {
+            chat.senders.forEach(sender => {
+                senderCounts[sender] = (senderCounts[sender] || 0) + 1;
+            });
+        });
+
+        // Find who has the highest count
+        let globalMe = "";
+        let max = 0;
+        for (let sender in senderCounts) {
+            if (senderCounts[sender] > max) {
+                max = senderCounts[sender];
+                globalMe = sender;
+            }
+        }
+
+        // Apply this person as "You" across all chats automatically
+        chats.forEach(chat => {
+            if (chat.senders.has(globalMe)) {
+                chat.myUsername = globalMe;
+            }
+        });
+    }
+    // --------------------------------
 
     loadingText.classList.add('hidden');
     renderChatList();
@@ -80,28 +125,49 @@ async function handleFileUpload(event) {
 
 async function handleZipFile(file, chatObj) {
     const zip = await JSZip.loadAsync(file);
-    let chatText = "";
+    const txtFiles = [];
 
     for (const [filename, zipEntry] of Object.entries(zip.files)) {
         if (filename.endsWith('.txt')) {
-            chatText = await zipEntry.async("string");
+            const content = await zipEntry.async("string");
+            txtFiles.push({ filename, content });
         } else if (!zipEntry.dir) {
             const blob = await zipEntry.async("blob");
             chatObj.mediaMap[filename] = URL.createObjectURL(blob);
         }
     }
-    if (chatText) parseChatText(chatText, chatObj);
+
+    if (txtFiles.length > 1) {
+        console.warn(`Zip contains ${txtFiles.length} .txt files:`, txtFiles.map(f => `${f.filename} (${f.content.length} chars)`));
+    }
+
+    // Use the largest .txt — the real chat log, not a stray/smaller file
+    const chosen = txtFiles.sort((a, b) => b.content.length - a.content.length)[0];
+    if (chosen) parseChatText(chosen.content, chatObj);
 }
 
 function parseChatText(text, chatObj) {
-    const messageRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[, ]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s-]+([^:]+):\s([\s\S]*)$/;
-    const systemRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[, ]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s-]+([\s\S]*)$/;
+    // --- TEMPORARY DEBUG: dump first 15 raw lines no matter what ---
+    const debugLines = text.split('\n').slice(0, 15);
+    debugLines.forEach((l, i) => console.log(`LINE ${i}:`, JSON.stringify(l)));
+    console.log('--- total length of text:', text.length, 'chars ---');
+    // --- END DEBUG ---
+
+    text = text.replace(/[\u200E\u200F\uFEFF]/g, '');
+    text = text.replace(/[\u202F\u00A0]/g, ' ');
+
+    const messageRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[,\s]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s\-–—]+([^:]+):\s*([\s\S]*)$/;
+    const systemRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[,\s]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s\-–—]+([\s\S]*)$/;
 
     const lines = text.split('\n');
     let currentMsg = null;
 
-    lines.forEach(line => {
+    lines.forEach((line, idx) => {
+        line = line.replace('\r', '').trim();
+        if (!line) return;
+
         const msgMatch = line.match(messageRegex);
+
         if (msgMatch) {
             if (currentMsg) chatObj.messages.push(currentMsg);
             const sender = msgMatch[3].trim();
@@ -109,7 +175,7 @@ function parseChatText(text, chatObj) {
             currentMsg = { type: 'user', date: msgMatch[1], time: msgMatch[2], sender: sender, message: msgMatch[4].trim() };
         } else {
             const sysMatch = line.match(systemRegex);
-            if (sysMatch && !line.includes(':')) {
+            if (sysMatch) {
                 if (currentMsg) chatObj.messages.push(currentMsg);
                 currentMsg = { type: 'system', date: sysMatch[1], time: sysMatch[2], message: sysMatch[3].trim() };
             } else if (currentMsg) {

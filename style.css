@@ -128,9 +128,16 @@ body {
 
 /* Chat Container */
 #chat-container { 
-    flex: 1; overflow-y: auto; padding: 20px 5%; display: flex; flex-direction: column; 
-    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 20 h20 v20 h-20 z' fill='rgba(0,0,0,0.03)'/%3E%3C/svg%3E"); 
+    flex: 1; 
+    min-width: 0;              /* NEW: critical — allows flex item to shrink below content size */
+    overflow-y: auto; 
+    overflow-x: hidden;        /* NEW: safety net so overflow never leaks sideways again */
+    padding: 20px 5%; 
+    display: flex; 
+    flex-direction: column; 
+    background-image: url("data:image/svg+xml,...");
 }
+
 body.dark-theme #chat-container {
     background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 20 h20 v20 h-20 z' fill='rgba(255,255,255,0.02)'/%3E%3C/svg%3E");
 }
@@ -150,7 +157,7 @@ body.dark-theme #chat-container {
 .sender-name { font-size: 12.5px; font-weight: 500; color: #029688; margin-bottom: 2px; }
 body.dark-theme .sender-name { color: #53bdeb; }
 
-.message-text { white-space: pre-wrap; }
+.message-text { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
 .message-time { font-size: 11px; color: var(--text-secondary); float: right; margin: 10px 0 -5px 10px; }
 
 .media-attachment { max-width: 100%; border-radius: 5px; margin-bottom: 5px; max-height: 300px; display: block; }
