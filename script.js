@@ -1,75 +1,69 @@
 // --- State Variables ---
-let parsedMessages = [];
-let uniqueSenders = new Set();
-let mediaMap = {}; // Maps filenames to Blob URLs
+let chats = []; 
+let activeChat = null; 
 let currentRenderIndex = 0;
-const CHUNK_SIZE = 50; // How many messages to load per scroll
+const CHUNK_SIZE = 50; 
 
 // --- DOM Elements ---
 const fileInput = document.getElementById('file-input');
-const fileNameDisplay = document.getElementById('file-name');
-const setupScreen = document.getElementById('setup-screen');
 const loadingText = document.getElementById('loading');
-const userSelectionDiv = document.getElementById('user-selection');
-const userSelector = document.getElementById('user-selector');
-const renderBtn = document.getElementById('render-btn');
-const chatScreen = document.getElementById('chat-screen');
+const chatListContainer = document.getElementById('chat-list');
+
+const welcomeScreen = document.getElementById('welcome-screen');
+const activeChatScreen = document.getElementById('active-chat');
 const chatContainer = document.getElementById('chat-container');
 const scrollAnchor = document.getElementById('scroll-anchor');
-const backBtn = document.getElementById('back-btn');
+const chatTitle = document.getElementById('chat-title');
+const headerAvatar = document.getElementById('header-avatar');
+const userSelector = document.getElementById('user-selector');
 
 // --- Event Listeners ---
 fileInput.addEventListener('change', handleFileUpload);
-renderBtn.addEventListener('click', startRenderingChat);
-backBtn.addEventListener('click', () => location.reload());
+userSelector.addEventListener('change', (e) => {
+    if(activeChat) {
+        activeChat.myUsername = e.target.value;
+        resetAndRenderChat();
+    }
+});
 
 // --- Core Logic ---
-
 async function handleFileUpload(event) {
-    // Convert to array so we can sort them
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
 
-    fileNameDisplay.textContent = `Selected: ${files.length} file(s)`;
     loadingText.classList.remove('hidden');
-    userSelectionDiv.classList.add('hidden');
 
-    parsedMessages = [];
-    uniqueSenders.clear();
-    mediaMap = {};
+    for (const file of files) {
+        let displayName = file.name.replace('WhatsApp Chat with ', '').replace('.txt', '').replace('.zip', '');
+        
+        let chatObj = {
+            id: Date.now() + Math.random(),
+            name: displayName,
+            messages: [],
+            mediaMap: {},
+            senders: new Set(),
+            myUsername: "" 
+        };
 
-    // Sort files alphabetically so "Chat (1).zip" comes after "Chat.zip"
-    files.sort((a, b) => a.name.localeCompare(b.name));
-
-    try {
-        // Loop through and process all selected files
-        for (const file of files) {
+        try {
             if (file.name.endsWith('.txt')) {
                 const text = await file.text();
-                parseChatText(text);
+                parseChatText(text, chatObj);
             } else if (file.name.endsWith('.zip')) {
-                await handleZipFile(file);
+                await handleZipFile(file, chatObj);
             }
+            
+            if (chatObj.messages.length > 0) chats.push(chatObj);
+        } catch (error) {
+            console.error(`Error processing ${file.name}:`, error);
         }
-    } catch (error) {
-        console.error(error);
-        alert("Error processing files. See console for details.");
     }
 
     loadingText.classList.add('hidden');
-    
-    userSelector.innerHTML = '<option value="">(None / System Messages Only)</option>';
-    uniqueSenders.forEach(sender => {
-        const option = document.createElement('option');
-        option.value = sender;
-        option.textContent = sender;
-        userSelector.appendChild(option);
-    });
-
-    userSelectionDiv.classList.remove('hidden');
+    renderChatList();
 }
 
-async function handleZipFile(file) {
+async function handleZipFile(file, chatObj) {
     const zip = await JSZip.loadAsync(file);
     let chatText = "";
 
@@ -77,22 +71,15 @@ async function handleZipFile(file) {
         if (filename.endsWith('.txt')) {
             chatText = await zipEntry.async("string");
         } else if (!zipEntry.dir) {
-            // It's a media file (image, video, audio)
             const blob = await zipEntry.async("blob");
-            mediaMap[filename] = URL.createObjectURL(blob);
+            chatObj.mediaMap[filename] = URL.createObjectURL(blob);
         }
     }
-
-    if (!chatText) throw new Error("No .txt file found in the zip.");
-    parseChatText(chatText);
+    if (chatText) parseChatText(chatText, chatObj);
 }
 
-function parseChatText(text) {
-    // Regex that catches iOS, Android, 12h, and 24h formats.
-    // Group 1: Date, Group 2: Time, Group 3: Sender, Group 4: Message text
+function parseChatText(text, chatObj) {
     const messageRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[, ]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s-]+([^:]+):\s([\s\S]*)$/;
-    
-    // Fallback regex for system messages (e.g., "Messages are end-to-end encrypted")
     const systemRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[, ]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s-]+([\s\S]*)$/;
 
     const lines = text.split('\n');
@@ -100,77 +87,113 @@ function parseChatText(text) {
 
     lines.forEach(line => {
         const msgMatch = line.match(messageRegex);
-        
         if (msgMatch) {
-            if (currentMsg) parsedMessages.push(currentMsg); // Save previous message
-            
+            if (currentMsg) chatObj.messages.push(currentMsg);
             const sender = msgMatch[3].trim();
-            uniqueSenders.add(sender);
-            
-            currentMsg = {
-                type: 'user',
-                date: msgMatch[1],
-                time: msgMatch[2],
-                sender: sender,
-                message: msgMatch[4].trim()
-            };
+            chatObj.senders.add(sender);
+            currentMsg = { type: 'user', date: msgMatch[1], time: msgMatch[2], sender: sender, message: msgMatch[4].trim() };
         } else {
             const sysMatch = line.match(systemRegex);
             if (sysMatch && !line.includes(':')) {
-                if (currentMsg) parsedMessages.push(currentMsg);
-                currentMsg = {
-                    type: 'system',
-                    date: sysMatch[1],
-                    time: sysMatch[2],
-                    message: sysMatch[3].trim()
-                };
+                if (currentMsg) chatObj.messages.push(currentMsg);
+                currentMsg = { type: 'system', date: sysMatch[1], time: sysMatch[2], message: sysMatch[3].trim() };
             } else if (currentMsg) {
-                // If no date matches, this line is a continuation of the previous message
                 currentMsg.message += '\n' + line;
             }
         }
     });
-    
-    if (currentMsg) parsedMessages.push(currentMsg); // Push the very last message
+    if (currentMsg) chatObj.messages.push(currentMsg);
 }
 
-// --- Rendering Logic ---
+// --- UI Logic: Sidebar List ---
+function renderChatList() {
+    chatListContainer.innerHTML = ''; 
 
-function startRenderingChat() {
-    setupScreen.classList.add('hidden');
-    chatScreen.classList.remove('hidden');
+    if (chats.length === 0) {
+        chatListContainer.innerHTML = '<div class="empty-state">No chats loaded yet.</div>';
+        return;
+    }
+
+    chats.forEach(chat => {
+        const row = document.createElement('div');
+        row.className = 'chat-item';
+        // Add active state if it's the currently open chat
+        if (activeChat && activeChat.id === chat.id) row.classList.add('active');
+        
+        const lastMsg = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
+        let previewText = lastMsg ? (lastMsg.type === 'user' ? `${lastMsg.sender}: ${lastMsg.message}` : lastMsg.message) : '';
+        if (previewText.length > 40) previewText = previewText.substring(0, 40) + '...';
+
+        const avatarLetter = chat.name.charAt(0).toUpperCase();
+
+        row.innerHTML = `
+            <div class="avatar">${avatarLetter}</div>
+            <div class="chat-details">
+                <div class="chat-item-main">
+                    <div class="chat-item-name">${chat.name}</div>
+                    <div class="chat-item-date">${lastMsg ? lastMsg.date : ''}</div>
+                </div>
+                <div class="chat-item-lastmsg">
+                    <span style="color:#53bdeb">✓✓</span> ${previewText}
+                </div>
+            </div>
+        `;
+        
+        row.addEventListener('click', () => openChat(chat));
+        chatListContainer.appendChild(row);
+    });
+}
+
+// --- UI Logic: Active Chat View ---
+function openChat(chat) {
+    activeChat = chat;
+    welcomeScreen.classList.add('hidden');
+    activeChatScreen.classList.remove('hidden');
     
-    // Clear chat container (except for the scroll anchor)
-    const bubbles = document.querySelectorAll('.message-bubble, .sys-message');
-    bubbles.forEach(b => b.remove());
-    
+    chatTitle.textContent = chat.name;
+    headerAvatar.textContent = chat.name.charAt(0).toUpperCase();
+
+    // Re-render sidebar to apply active highlight color
+    renderChatList();
+
+    userSelector.innerHTML = '<option value="">Who are you?</option>';
+    chat.senders.forEach(sender => {
+        const option = document.createElement('option');
+        option.value = sender;
+        option.textContent = sender;
+        userSelector.appendChild(option);
+    });
+
+    if (chat.myUsername) userSelector.value = chat.myUsername;
+
+    resetAndRenderChat();
+}
+
+function resetAndRenderChat() {
+    document.querySelectorAll('.message-bubble, .sys-message, .date-separator').forEach(el => el.remove());
     currentRenderIndex = 0;
     renderNextChunk();
 }
 
 function renderNextChunk() {
-    if (currentRenderIndex >= parsedMessages.length) return; 
+    if (!activeChat || currentRenderIndex >= activeChat.messages.length) return;
 
-    const myUsername = userSelector.value;
+    const myUsername = activeChat.myUsername;
     const fragment = document.createDocumentFragment();
-    
-    const endIndex = Math.min(currentRenderIndex + CHUNK_SIZE, parsedMessages.length);
+    const endIndex = Math.min(currentRenderIndex + CHUNK_SIZE, activeChat.messages.length);
     
     for (let i = currentRenderIndex; i < endIndex; i++) {
-        const msg = parsedMessages[i];
+        const msg = activeChat.messages[i];
         
-        // --- NEW: DATE SEPARATOR LOGIC ---
-        // Check the previous message. If the date is different (or it's the first message), show the Date Pill
-        const prevMsg = i > 0 ? parsedMessages[i - 1] : null;
+        const prevMsg = i > 0 ? activeChat.messages[i - 1] : null;
         if (!prevMsg || prevMsg.date !== msg.date) {
-            if (msg.date) { // Ensure it actually has a date
+            if (msg.date) {
                 const dateDiv = document.createElement('div');
                 dateDiv.className = 'date-separator';
                 dateDiv.textContent = msg.date;
                 fragment.appendChild(dateDiv);
             }
         }
-        // ---------------------------------
         
         if (msg.type === 'system') {
             const sysDiv = document.createElement('div');
@@ -184,7 +207,8 @@ function renderNextChunk() {
         const bubble = document.createElement('div');
         bubble.className = `message-bubble ${isMe ? 'message-out' : 'message-in'}`;
 
-        if (!isMe) {
+        // Only show sender name in group chats if it's someone else
+        if (!isMe && activeChat.senders.size > 2) {
             const senderSpan = document.createElement('div');
             senderSpan.className = 'sender-name';
             senderSpan.textContent = msg.sender;
@@ -192,7 +216,7 @@ function renderNextChunk() {
         }
 
         let textContent = msg.message;
-        for (const [filename, blobUrl] of Object.entries(mediaMap)) {
+        for (const [filename, blobUrl] of Object.entries(activeChat.mediaMap)) {
             if (msg.message.includes(filename)) {
                 const mediaExt = filename.split('.').pop().toLowerCase();
                 let mediaTag;
@@ -237,10 +261,8 @@ function renderNextChunk() {
     currentRenderIndex = endIndex;
 }
 
-// --- Infinite Scroll Setup (Intersection Observer) ---
-// This watches the bottom of the chat. When it comes into view, it loads the next chunk.
 const observer = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting && !setupScreen.classList.contains('hidden') === false) {
+    if (entries[0].isIntersecting) {
         renderNextChunk();
     }
 }, { root: chatContainer, rootMargin: '100px' });
