@@ -1,0 +1,24 @@
+## To-Do
+
+- [x] Multiple file support
+- [x] Date support
+- [x] Theme toggle
+- [ ] Edited messages (<This message was edited>)
+- [ ] Pinned messages (20/04/26, 07:21 - You pinned a message)
+- [ ] Search messages
+- [ ] Messages to yourself
+- [ ] Link support
+- [ ] .pdf files
+- [ ] .vcf files
+- [ ] .mp3 files (audio)
+- [ ] Unavailable media (placeholder maybe)
+- [ ] Deleted messages (This message was deleted)
+- [ ] Formatted text in messages
+- [ ] Forwarded messages
+- [ ] Live location
+- [ ] Reduce lag
+- [ ] Sticky dates
+- [ ] Color options in group chat
+- [ ] Press ```esc``` to close chat
+- [ ] Option to remove chat
+- [ ] Drag n drop

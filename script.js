@@ -1,3 +1,18 @@
+// --- Theme Handling ---
+const themeToggleBtn = document.getElementById('theme-toggle');
+
+// Check memory for saved theme preference
+if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark-theme');
+}
+
+themeToggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('dark-theme');
+    const isDark = document.body.classList.contains('dark-theme');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+});
+
+
 // --- State Variables ---
 let chats = []; 
 let activeChat = null; 
@@ -117,7 +132,6 @@ function renderChatList() {
     chats.forEach(chat => {
         const row = document.createElement('div');
         row.className = 'chat-item';
-        // Add active state if it's the currently open chat
         if (activeChat && activeChat.id === chat.id) row.classList.add('active');
         
         const lastMsg = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
@@ -132,9 +146,6 @@ function renderChatList() {
                 <div class="chat-item-main">
                     <div class="chat-item-name">${chat.name}</div>
                     <div class="chat-item-date">${lastMsg ? lastMsg.date : ''}</div>
-                </div>
-                <div class="chat-item-lastmsg">
-                    <span style="color:#53bdeb">✓✓</span> ${previewText}
                 </div>
             </div>
         `;
@@ -153,8 +164,7 @@ function openChat(chat) {
     chatTitle.textContent = chat.name;
     headerAvatar.textContent = chat.name.charAt(0).toUpperCase();
 
-    // Re-render sidebar to apply active highlight color
-    renderChatList();
+    renderChatList(); // Updates active state in sidebar
 
     userSelector.innerHTML = '<option value="">Who are you?</option>';
     chat.senders.forEach(sender => {
@@ -207,7 +217,6 @@ function renderNextChunk() {
         const bubble = document.createElement('div');
         bubble.className = `message-bubble ${isMe ? 'message-out' : 'message-in'}`;
 
-        // Only show sender name in group chats if it's someone else
         if (!isMe && activeChat.senders.size > 2) {
             const senderSpan = document.createElement('div');
             senderSpan.className = 'sender-name';

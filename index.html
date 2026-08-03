@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Chat Visualizer</title>
+    <title>WA Viewer</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
@@ -14,8 +14,9 @@
         <div id="sidebar">
             <div class="sidebar-header">
                 <h2>Chats</h2>
-                <div>
-                    <label for="file-input" class="upload-btn" title="Upload Chats">➕</label>
+                <div class="header-actions">
+                    <button id="theme-toggle" class="icon-btn" title="Toggle Theme">🌓</button>
+                    <label for="file-input" class="icon-btn upload-btn" title="Upload Chats">➕</label>
                     <input type="file" id="file-input" accept=".txt, .zip" multiple hidden>
                 </div>
             </div>
@@ -52,7 +53,7 @@
                     <div id="scroll-anchor"></div>
                 </div>
 
-                <!-- Mock Input Area (Matches your screenshot) -->
+                <!-- Mock Input Area -->
                 <div class="chat-input-area">
                     <span class="icon">➕</span>
                     <span class="icon">😀</span>
