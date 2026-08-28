@@ -167,8 +167,23 @@ async function handleZipFile(file, chatObj) {
         if (filename.endsWith('.txt')) {
             chatText = await zipEntry.async("string");
         } else if (!zipEntry.dir) {
-            const blob = await zipEntry.async("blob");
-            chatObj.mediaMap[filename] = URL.createObjectURL(blob);
+            // Get the raw binary data
+            const rawBlob = await zipEntry.async("blob");
+            
+            // Figure out what type of file this is so the browser doesn't get confused
+            let mimeType = "";
+            const ext = filename.split('.').pop().toLowerCase();
+            
+            if (ext === 'pdf') mimeType = 'application/pdf';
+            else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+            else if (ext === 'png') mimeType = 'image/png';
+            else if (ext === 'mp4') mimeType = 'video/mp4';
+            else if (ext === 'mp3' || ext === 'm4a' || ext === 'opus') mimeType = 'audio/mpeg';
+
+            // Create a new Blob that explicitly tells the browser exactly what it is
+            const typedBlob = mimeType ? new Blob([rawBlob], { type: mimeType }) : rawBlob;
+            
+            chatObj.mediaMap[filename] = URL.createObjectURL(typedBlob);
         }
     }
     if (chatText) parseChatText(chatText, chatObj);
@@ -325,32 +340,51 @@ function renderNextChunk() {
                 if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(mediaExt)) {
                     mediaTag = document.createElement('img');
                     mediaTag.src = blobUrl;
+                    mediaTag.className = 'media-attachment';
                 } else if (['mp4', 'mov'].includes(mediaExt)) {
                     mediaTag = document.createElement('video');
                     mediaTag.src = blobUrl;
                     mediaTag.controls = true;
+                    mediaTag.className = 'media-attachment';
                 } else if (['opus', 'mp3', 'm4a'].includes(mediaExt)) {
                     mediaTag = document.createElement('audio');
                     mediaTag.src = blobUrl;
                     mediaTag.controls = true;
+                    mediaTag.className = 'media-attachment';
+                } else if (mediaExt === 'pdf') {
+                    mediaTag = document.createElement('a');
+                    mediaTag.href = blobUrl;
+                    mediaTag.target = '_blank'; 
+                    mediaTag.className = 'pdf-attachment';
+                    mediaTag.innerHTML = `<span class="pdf-icon">📄</span> <span class="pdf-name">${filename}</span>`;
                 }
 
                 if (mediaTag) {
-                    mediaTag.className = 'media-attachment';
                     bubble.appendChild(mediaTag);
-                    textContent = textContent.replace(filename, '').replace('(file attached)', '').replace('<attached:', '').replace('>', '').trim();
+                    
+                    // --- NEW AGGRESSIVE CLEANUP ---
+                    // split().join() forces the code to remove ALL occurrences of the filename, not just the first one
+                    textContent = textContent.split(filename).join('');
+                    
+                    // Remove all other WhatsApp attachment artifacts globally
+                    textContent = textContent.replace(/\(file attached\)/gi, '')
+                                             .replace(/<attached:/gi, '')
+                                             .replace(/>/g, '')
+                                             .replace(/• \d+ pages?/gi, '') // Removes stray PDF page counts
+                                             .trim();
                 }
             }
         }
 
-        if (textContent) {
+        // Only add the text bubble if there is actual text left over!
+        // (Also ignores stray bullet points if WhatsApp left one behind)
+        if (textContent && textContent.length > 0 && textContent !== '•') {
             const textSpan = document.createElement('div');
             textSpan.className = 'message-text';
-            // URL FORMATTER ADDED SAFELY HERE
             textSpan.appendChild(formatMessageWithLinks(textContent));
             bubble.appendChild(textSpan);
         }
-        
+                
         const timeSpan = document.createElement('div');
         timeSpan.className = 'message-time';
         timeSpan.textContent = msg.time;

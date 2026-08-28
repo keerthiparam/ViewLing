@@ -179,3 +179,41 @@ body.dark-theme .fake-input { border: none; }
 body.dark-theme .chat-link {
     color: #53bdeb; /* Lighter blue for dark mode */
 }
+
+/* PDF / Document Attachments */
+.pdf-attachment {
+    display: flex;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 10px 15px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: inherit;
+    margin-bottom: 5px;
+    border: 1px solid rgba(0,0,0,0.1);
+    transition: background-color 0.2s;
+}
+
+body.dark-theme .pdf-attachment {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.pdf-attachment:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+body.dark-theme .pdf-attachment:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.pdf-icon {
+    font-size: 24px;
+    margin-right: 12px;
+}
+
+.pdf-name {
+    font-size: 14px;
+    font-weight: 500;
+    word-break: break-all; /* Keeps long filenames inside the box */
+}
