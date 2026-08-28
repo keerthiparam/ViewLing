@@ -1,45 +1,16 @@
 // --- Theme Handling ---
 const themeToggleBtn = document.getElementById('theme-toggle');
-
-// Check memory for saved theme preference
 if (localStorage.getItem('theme') === 'dark') {
     document.body.classList.add('dark-theme');
 }
 
-themeToggleBtn.addEventListener('click', () => {
-    document.body.classList.toggle('dark-theme');
-    const isDark = document.body.classList.contains('dark-theme');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-});
-
-
-// --- State Variables ---
-let chats = []; 
-let activeChat = null; 
-let currentRenderIndex = 0;
-const CHUNK_SIZE = 50; 
-
-// --- DOM Elements ---
-const fileInput = document.getElementById('file-input');
-const loadingText = document.getElementById('loading');
-const chatListContainer = document.getElementById('chat-list');
-
-const welcomeScreen = document.getElementById('welcome-screen');
-const activeChatScreen = document.getElementById('active-chat');
-const chatContainer = document.getElementById('chat-container');
-const scrollAnchor = document.getElementById('scroll-anchor');
-const chatTitle = document.getElementById('chat-title');
-const headerAvatar = document.getElementById('header-avatar');
-const userSelector = document.getElementById('user-selector');
-
-// --- Event Listeners ---
-fileInput.addEventListener('change', handleFileUpload);
-userSelector.addEventListener('change', (e) => {
-    if(activeChat) {
-        activeChat.myUsername = e.target.value;
-        resetAndRenderChat();
-    }
-});
+if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('dark-theme');
+        const isDark = document.body.classList.contains('dark-theme');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    });
+}
 
 // --- Group Chat Colors ---
 const senderColors = [
@@ -57,6 +28,59 @@ function getColorForSender(senderName) {
     const index = Math.abs(hash) % senderColors.length;
     return senderColors[index];
 }
+
+// --- URL Formatter ---
+function formatMessageWithLinks(text) {
+    if (!text) return document.createTextNode("");
+    const fragment = document.createDocumentFragment();
+    
+    // Safer, simpler regex to prevent browser crashes
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+    parts.forEach(part => {
+        if (/^(https?:\/\/|www\.)/i.test(part)) {
+            const link = document.createElement('a');
+            link.href = part.toLowerCase().startsWith('www.') ? 'https://' + part : part;
+            link.textContent = part;
+            link.target = '_blank'; 
+            link.rel = 'noopener noreferrer'; 
+            link.className = 'chat-link';
+            fragment.appendChild(link);
+        } else if (part) {
+            fragment.appendChild(document.createTextNode(part));
+        }
+    });
+
+    return fragment;
+}
+
+// --- State Variables ---
+let chats = []; 
+let activeChat = null; 
+let currentRenderIndex = 0;
+const CHUNK_SIZE = 50; 
+
+// --- DOM Elements ---
+const fileInput = document.getElementById('file-input');
+const loadingText = document.getElementById('loading');
+const chatListContainer = document.getElementById('chat-list');
+const welcomeScreen = document.getElementById('welcome-screen');
+const activeChatScreen = document.getElementById('active-chat');
+const chatContainer = document.getElementById('chat-container');
+const scrollAnchor = document.getElementById('scroll-anchor');
+const chatTitle = document.getElementById('chat-title');
+const headerAvatar = document.getElementById('header-avatar');
+const userSelector = document.getElementById('user-selector');
+
+// --- Event Listeners ---
+fileInput.addEventListener('change', handleFileUpload);
+userSelector.addEventListener('change', (e) => {
+    if(activeChat) {
+        activeChat.myUsername = e.target.value;
+        resetAndRenderChat();
+    }
+});
 
 // --- Core Logic ---
 async function handleFileUpload(event) {
@@ -85,7 +109,7 @@ async function handleFileUpload(event) {
                 await handleZipFile(file, chatObj);
             }
             
-            // Smart guess 1: Look at the file name
+            // Smart guess 1: By File Name
             if (chatObj.senders.size === 1) {
                 chatObj.myUsername = Array.from(chatObj.senders)[0];
             } else if (chatObj.senders.size === 2) {
@@ -97,18 +121,18 @@ async function handleFileUpload(event) {
                 }
             }
             
-            // Add it to the sidebar even if it's empty, so we know it didn't silently fail
+            // Show error in chat if completely unreadable
             if (chatObj.messages.length === 0) {
-                chatObj.messages.push({ type: 'system', date: 'N/A', time: '', message: '⚠️ Could not read messages. The date/time format in this file is not recognized.' });
+                chatObj.messages.push({ type: 'system', date: 'N/A', time: '', message: '⚠️ Could not read messages. Format not recognized.' });
             }
+            
             chats.push(chatObj);
         } catch (error) {
             console.error(`Error processing ${file.name}:`, error);
         }
     }
 
-    // --- NEW: THE "MAJORITY RULE" ---
-    // If multiple chats are uploaded, find the sender that appears in most of them!
+    // Smart guess 2: Majority Rule
     if (chats.length > 1) {
         let senderCounts = {};
         chats.forEach(chat => {
@@ -117,7 +141,6 @@ async function handleFileUpload(event) {
             });
         });
 
-        // Find who has the highest count
         let globalMe = "";
         let max = 0;
         for (let sender in senderCounts) {
@@ -127,14 +150,10 @@ async function handleFileUpload(event) {
             }
         }
 
-        // Apply this person as "You" across all chats automatically
         chats.forEach(chat => {
-            if (chat.senders.has(globalMe)) {
-                chat.myUsername = globalMe;
-            }
+            if (chat.senders.has(globalMe)) chat.myUsername = globalMe;
         });
     }
-    // --------------------------------
 
     loadingText.classList.add('hidden');
     renderChatList();
@@ -142,49 +161,34 @@ async function handleFileUpload(event) {
 
 async function handleZipFile(file, chatObj) {
     const zip = await JSZip.loadAsync(file);
-    const txtFiles = [];
+    let chatText = "";
 
     for (const [filename, zipEntry] of Object.entries(zip.files)) {
         if (filename.endsWith('.txt')) {
-            const content = await zipEntry.async("string");
-            txtFiles.push({ filename, content });
+            chatText = await zipEntry.async("string");
         } else if (!zipEntry.dir) {
             const blob = await zipEntry.async("blob");
             chatObj.mediaMap[filename] = URL.createObjectURL(blob);
         }
     }
-
-    if (txtFiles.length > 1) {
-        console.warn(`Zip contains ${txtFiles.length} .txt files:`, txtFiles.map(f => `${f.filename} (${f.content.length} chars)`));
-    }
-
-    // Use the largest .txt — the real chat log, not a stray/smaller file
-    const chosen = txtFiles.sort((a, b) => b.content.length - a.content.length)[0];
-    if (chosen) parseChatText(chosen.content, chatObj);
+    if (chatText) parseChatText(chatText, chatObj);
 }
 
 function parseChatText(text, chatObj) {
-    // --- TEMPORARY DEBUG: dump first 15 raw lines no matter what ---
-    const debugLines = text.split('\n').slice(0, 15);
-    debugLines.forEach((l, i) => console.log(`LINE ${i}:`, JSON.stringify(l)));
-    console.log('--- total length of text:', text.length, 'chars ---');
-    // --- END DEBUG ---
-
+    // Destroy invisible characters
     text = text.replace(/[\u200E\u200F\uFEFF]/g, '');
-    text = text.replace(/[\u202F\u00A0]/g, ' ');
 
-    const messageRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[,\s]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s\-–—]+([^:]+):\s*([\s\S]*)$/;
-    const systemRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[,\s]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s\-–—]+([\s\S]*)$/;
+    const messageRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[, ]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s\-–—]+([^:]+):\s*([\s\S]*)$/;
+    const systemRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[, ]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s\-–—]+([\s\S]*)$/;
 
     const lines = text.split('\n');
     let currentMsg = null;
 
-    lines.forEach((line, idx) => {
-        line = line.replace('\r', '').trim();
-        if (!line) return;
+    lines.forEach(line => {
+        line = line.replace('\r', '').trim(); 
+        if (!line) return; 
 
         const msgMatch = line.match(messageRegex);
-
         if (msgMatch) {
             if (currentMsg) chatObj.messages.push(currentMsg);
             const sender = msgMatch[3].trim();
@@ -230,6 +234,9 @@ function renderChatList() {
                     <div class="chat-item-name">${chat.name}</div>
                     <div class="chat-item-date">${lastMsg ? lastMsg.date : ''}</div>
                 </div>
+                <div class="chat-item-lastmsg">
+                    ${previewText}
+                </div>
             </div>
         `;
         
@@ -247,7 +254,7 @@ function openChat(chat) {
     chatTitle.textContent = chat.name;
     headerAvatar.textContent = chat.name.charAt(0).toUpperCase();
 
-    renderChatList(); // Updates active state in sidebar
+    renderChatList(); 
 
     userSelector.innerHTML = '<option value="">Who are you?</option>';
     chat.senders.forEach(sender => {
@@ -291,7 +298,8 @@ function renderNextChunk() {
         if (msg.type === 'system') {
             const sysDiv = document.createElement('div');
             sysDiv.className = 'sys-message';
-            sysDiv.textContent = msg.message;
+            // Also apply links to system messages (like Learn More links)
+            sysDiv.appendChild(formatMessageWithLinks(msg.message));
             fragment.appendChild(sysDiv);
             continue;
         }
@@ -304,8 +312,7 @@ function renderNextChunk() {
             const senderSpan = document.createElement('div');
             senderSpan.className = 'sender-name';
             senderSpan.textContent = msg.sender;
-            // Apply the unique color dynamically!
-            senderSpan.style.color = getColorForSender(msg.sender);
+            senderSpan.style.color = getColorForSender(msg.sender); // DYNAMIC COLOR
             bubble.appendChild(senderSpan);
         }
 
@@ -339,7 +346,8 @@ function renderNextChunk() {
         if (textContent) {
             const textSpan = document.createElement('div');
             textSpan.className = 'message-text';
-            textSpan.textContent = textContent;
+            // URL FORMATTER ADDED SAFELY HERE
+            textSpan.appendChild(formatMessageWithLinks(textContent));
             bubble.appendChild(textSpan);
         }
         

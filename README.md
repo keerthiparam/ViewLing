@@ -7,7 +7,7 @@
 - [ ] Pinned messages (20/04/26, 07:21 - You pinned a message)
 - [ ] Search messages
 - [x] Messages to yourself
-- [ ] Link support
+- [x] Link support
 - [ ] .pdf files
 - [ ] .vcf files
 - [ ] .mp3 files (audio)
@@ -18,7 +18,7 @@
 - [ ] Live location
 - [ ] Reduce lag
 - [ ] Sticky dates
-- [ ] Color options in group chat
+- [x] Color options in group chat
 - [ ] Press ```esc``` to close chat
 - [ ] Option to remove chat
 - [ ] Drag n drop

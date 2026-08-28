@@ -166,3 +166,16 @@ body {
     padding: 10px 15px; border-radius: 8px; font-size: 15px; cursor: text; border: 1px solid var(--border-color);
 }
 body.dark-theme .fake-input { border: none; }
+
+/* Clickable Links */
+.chat-link {
+    color: #027eb5;
+    text-decoration: none;
+    word-break: break-word; /* Prevents long URLs from overflowing the chat bubble */
+}
+.chat-link:hover {
+    text-decoration: underline;
+}
+body.dark-theme .chat-link {
+    color: #53bdeb; /* Lighter blue for dark mode */
+}
