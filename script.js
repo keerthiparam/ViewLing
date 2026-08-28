@@ -41,6 +41,23 @@ userSelector.addEventListener('change', (e) => {
     }
 });
 
+// --- Group Chat Colors ---
+const senderColors = [
+    '#ff7a85', '#35cd96', '#6bcbef', '#e542a3', '#91ab01', 
+    '#ffa97a', '#1f7aec', '#dfb610', '#029d00', '#8b7add', 
+    '#ba33dc', '#59d368', '#b04632', '#fd85d4', '#8393ca', 
+    '#ff8f2c', '#a3e047', '#549a8f', '#53bdeb', '#ff665c'
+];
+
+function getColorForSender(senderName) {
+    let hash = 0;
+    for (let i = 0; i < senderName.length; i++) {
+        hash = senderName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % senderColors.length;
+    return senderColors[index];
+}
+
 // --- Core Logic ---
 async function handleFileUpload(event) {
     const files = Array.from(event.target.files);
@@ -287,6 +304,8 @@ function renderNextChunk() {
             const senderSpan = document.createElement('div');
             senderSpan.className = 'sender-name';
             senderSpan.textContent = msg.sender;
+            // Apply the unique color dynamically!
+            senderSpan.style.color = getColorForSender(msg.sender);
             bubble.appendChild(senderSpan);
         }
 
