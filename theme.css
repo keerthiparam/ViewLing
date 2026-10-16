@@ -1,0 +1,59 @@
+:root {
+    /* LIGHT MODE (Default) */
+    --bg-main: #ffffff;
+    --bg-sidebar: #ffffff;
+    --bg-header: #f8f5f0;
+    --bg-chat-area: #efeae2;
+    --text-primary: #111b21;
+    --text-secondary: #667781;
+    --border-color: #d1d7db;
+    --bg-hover: #f5f6f6;
+    --bg-active: #f0f2f5;
+    
+    --bubble-in: #ffffff;
+    --bubble-out: #d9fdd3;
+    --bubble-sys: #ffffff;
+    --date-pill-bg: #ffffff;
+    
+    --input-area-bg: #f0f2f5;
+    --input-bg: #ffffff;
+    
+    --avatar-bg: #dfe5e7;
+    --avatar-text: #54656f;
+    --checkmark-color: #53bdeb;
+}
+
+body.dark-theme {
+    /* DARK MODE */
+    --bg-main: #111b21;
+    --bg-sidebar: #111b21;
+    --bg-header: #202c33;
+    --bg-chat-area: #0b141a;
+    --text-primary: #e9edef;
+    --text-secondary: #8696a0;
+    --border-color: #222e35;
+    --bg-hover: #202c33;
+    --bg-active: #2a3942;
+    
+    --bubble-in: #202c33;
+    --bubble-out: #005c4b;
+    --bubble-sys: #182229;
+    --date-pill-bg: #182229;
+    
+    --input-area-bg: #202c33;
+    --input-bg: #2a3942;
+    
+    --avatar-bg: #667781;
+    --avatar-text: #ffffff;
+}
+
+/* General Resets */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+    background-color: var(--bg-main); 
+    color: var(--text-primary); 
+    height: 100vh; width: 100vw; overflow: hidden; 
+    transition: background-color 0.3s, color 0.3s;
+}
+.hidden { display: none !important; }

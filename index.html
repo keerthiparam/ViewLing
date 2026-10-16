@@ -4,10 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WA Viewer</title>
-    <link rel="stylesheet" href="style.css">
+    <!-- SPLIT CSS FILES -->
+    <link rel="stylesheet" href="theme.css">
+    <link rel="stylesheet" href="layout.css">
+    <link rel="stylesheet" href="chat.css">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
+   
+    <!-- DRAG AND DROP OVERLAY -->
+    <div id="drag-overlay" class="hidden">
+        <div class="drag-content">
+            <span class="drag-icon">📁</span>
+            <h2>Drop WhatsApp .zip or .txt files here</h2>
+        </div>
+    </div>
     
     <div id="app">
         <!-- LEFT SIDEBAR -->
@@ -32,8 +44,10 @@
         <div id="main-view">
             <!-- Shown when no chat is clicked -->
             <div id="welcome-screen">
-                <h2>WhatsApp Visualizer</h2>
-                <p>Select a chat from the sidebar to start reading.</p>
+                <div class="welcome-drop-zone">
+                    <span class="welcome-icon">📁</span>
+                    <h2>Drop WhatsApp .zip or .txt files here</h2>
+                </div>
             </div>
 
             <!-- Shown when a chat is clicked -->
@@ -63,6 +77,9 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- SPLIT JAVASCRIPT FILES (Order matters!) -->
+    <script src="utils.js"></script>
+    <script src="parser.js"></script>
+    <script src="ui.js"></script>
 </body>
 </html>

@@ -8,17 +8,23 @@
 - [ ] Search messages
 - [x] Messages to yourself
 - [x] Link support
-- [ ] .pdf files
+- [x] .pdf files
 - [ ] .vcf files
 - [ ] .mp3 files (audio)
+- [ ] .pptx files
+- [ ] .gif files
+- [ ] excel
+- [ ] mail id
+- [ ] phone numbers
 - [ ] Unavailable media (placeholder maybe)
 - [ ] Deleted messages (This message was deleted)
 - [ ] Formatted text in messages
 - [ ] Forwarded messages
 - [ ] Live location
-- [ ] Reduce lag
+- [ ] Reduce lag (Load and unload messages)
 - [ ] Sticky dates
 - [x] Color options in group chat
 - [ ] Press ```esc``` to close chat
 - [ ] Option to remove chat
-- [ ] Drag n drop
+- [x] Drag n drop
+- [ ] Optimize for all types of devices

@@ -3,7 +3,6 @@ const themeToggleBtn = document.getElementById('theme-toggle');
 if (localStorage.getItem('theme') === 'dark') {
     document.body.classList.add('dark-theme');
 }
-
 if (themeToggleBtn) {
     themeToggleBtn.addEventListener('click', () => {
         document.body.classList.toggle('dark-theme');
@@ -33,8 +32,6 @@ function getColorForSender(senderName) {
 function formatMessageWithLinks(text) {
     if (!text) return document.createTextNode("");
     const fragment = document.createDocumentFragment();
-    
-    // Safer, simpler regex to prevent browser crashes
     const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
     const parts = text.split(urlRegex);
 
@@ -51,7 +48,6 @@ function formatMessageWithLinks(text) {
             fragment.appendChild(document.createTextNode(part));
         }
     });
-
     return fragment;
 }
 
@@ -72,9 +68,16 @@ const scrollAnchor = document.getElementById('scroll-anchor');
 const chatTitle = document.getElementById('chat-title');
 const headerAvatar = document.getElementById('header-avatar');
 const userSelector = document.getElementById('user-selector');
+const dragOverlay = document.getElementById('drag-overlay');
 
 // --- Event Listeners ---
-fileInput.addEventListener('change', handleFileUpload);
+// 1. Button Upload
+fileInput.addEventListener('change', (e) => {
+    processFiles(e.target.files);
+    e.target.value = ''; // Reset so same file can be uploaded again
+});
+
+// 2. User Selector
 userSelector.addEventListener('change', (e) => {
     if(activeChat) {
         activeChat.myUsername = e.target.value;
@@ -82,9 +85,31 @@ userSelector.addEventListener('change', (e) => {
     }
 });
 
+// 3. Drag and Drop Logic
+let dragCounter = 0;
+window.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    if (dragCounter === 1) dragOverlay.classList.remove('hidden');
+});
+window.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter === 0) dragOverlay.classList.add('hidden');
+});
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dragOverlay.classList.add('hidden');
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processFiles(e.dataTransfer.files);
+    }
+});
+
 // --- Core Logic ---
-async function handleFileUpload(event) {
-    const files = Array.from(event.target.files);
+async function processFiles(fileList) {
+    const files = Array.from(fileList);
     if (files.length === 0) return;
 
     loadingText.classList.remove('hidden');
@@ -109,7 +134,7 @@ async function handleFileUpload(event) {
                 await handleZipFile(file, chatObj);
             }
             
-            // Smart guess 1: By File Name
+            // Smart guess 1
             if (chatObj.senders.size === 1) {
                 chatObj.myUsername = Array.from(chatObj.senders)[0];
             } else if (chatObj.senders.size === 2) {
@@ -121,7 +146,6 @@ async function handleFileUpload(event) {
                 }
             }
             
-            // Show error in chat if completely unreadable
             if (chatObj.messages.length === 0) {
                 chatObj.messages.push({ type: 'system', date: 'N/A', time: '', message: '⚠️ Could not read messages. Format not recognized.' });
             }
@@ -167,10 +191,7 @@ async function handleZipFile(file, chatObj) {
         if (filename.endsWith('.txt')) {
             chatText = await zipEntry.async("string");
         } else if (!zipEntry.dir) {
-            // Get the raw binary data
             const rawBlob = await zipEntry.async("blob");
-            
-            // Figure out what type of file this is so the browser doesn't get confused
             let mimeType = "";
             const ext = filename.split('.').pop().toLowerCase();
             
@@ -180,9 +201,7 @@ async function handleZipFile(file, chatObj) {
             else if (ext === 'mp4') mimeType = 'video/mp4';
             else if (ext === 'mp3' || ext === 'm4a' || ext === 'opus') mimeType = 'audio/mpeg';
 
-            // Create a new Blob that explicitly tells the browser exactly what it is
             const typedBlob = mimeType ? new Blob([rawBlob], { type: mimeType }) : rawBlob;
-            
             chatObj.mediaMap[filename] = URL.createObjectURL(typedBlob);
         }
     }
@@ -190,11 +209,12 @@ async function handleZipFile(file, chatObj) {
 }
 
 function parseChatText(text, chatObj) {
-    // Destroy invisible characters
-    text = text.replace(/[\u200E\u200F\uFEFF]/g, '');
+    // Destroy invisible characters (Left-to-Right marks, etc)
+    text = text.replace(/[\u200E\u200F\u202A-\u202E\uFEFF]/g, '');
 
-    const messageRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[, ]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s\-–—]+([^:]+):\s*([\s\S]*)$/;
-    const systemRegex = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})[, ]+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]?[Mm]?)\]?[\s\-–—]+([\s\S]*)$/;
+    // Much simpler, bulletproof Regex. 
+    // Matches: Date, Time, and everything after the dash.
+    const lineRegex = /^\[?(\d{1,4}[-/.]\d{1,4}[-/.]\d{1,4})[,\s]+(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?(?:\s*[a-zA-Z]{0,4})?)\]?[\s\-–—]*(.*)$/i;
 
     const lines = text.split('\n');
     let currentMsg = null;
@@ -203,22 +223,36 @@ function parseChatText(text, chatObj) {
         line = line.replace('\r', '').trim(); 
         if (!line) return; 
 
-        const msgMatch = line.match(messageRegex);
-        if (msgMatch) {
+        const match = line.match(lineRegex);
+        
+        if (match) {
+            // Save previous message
             if (currentMsg) chatObj.messages.push(currentMsg);
-            const sender = msgMatch[3].trim();
-            chatObj.senders.add(sender);
-            currentMsg = { type: 'user', date: msgMatch[1], time: msgMatch[2], sender: sender, message: msgMatch[4].trim() };
-        } else {
-            const sysMatch = line.match(systemRegex);
-            if (sysMatch) {
-                if (currentMsg) chatObj.messages.push(currentMsg);
-                currentMsg = { type: 'system', date: sysMatch[1], time: sysMatch[2], message: sysMatch[3].trim() };
-            } else if (currentMsg) {
-                currentMsg.message += '\n' + line;
+            
+            const date = match[1].trim();
+            const time = match[2].trim();
+            const content = match[3].trim(); // Everything after the time and dash
+
+            // Check if it's a User Message or System Message
+            const colonIndex = content.indexOf(':');
+            
+            // If there's a colon early in the sentence, it's definitely "Sender Name:"
+            if (colonIndex !== -1 && colonIndex < 40) {
+                const sender = content.substring(0, colonIndex).trim();
+                const messageText = content.substring(colonIndex + 1).trim();
+                
+                chatObj.senders.add(sender);
+                currentMsg = { type: 'user', date: date, time: time, sender: sender, message: messageText };
+            } else {
+                // No early colon? It's a System Message (like "Messages are end-to-end encrypted")
+                currentMsg = { type: 'system', date: date, time: time, message: content };
             }
+        } else if (currentMsg) {
+            // If it doesn't match a date/time, it is a multi-line message continuation!
+            currentMsg.message += '\n' + line;
         }
     });
+    
     if (currentMsg) chatObj.messages.push(currentMsg);
 }
 
@@ -242,6 +276,7 @@ function renderChatList() {
 
         const avatarLetter = chat.name.charAt(0).toUpperCase();
 
+        // Checkmarks removed as requested
         row.innerHTML = `
             <div class="avatar">${avatarLetter}</div>
             <div class="chat-details">
@@ -313,7 +348,6 @@ function renderNextChunk() {
         if (msg.type === 'system') {
             const sysDiv = document.createElement('div');
             sysDiv.className = 'sys-message';
-            // Also apply links to system messages (like Learn More links)
             sysDiv.appendChild(formatMessageWithLinks(msg.message));
             fragment.appendChild(sysDiv);
             continue;
@@ -327,7 +361,7 @@ function renderNextChunk() {
             const senderSpan = document.createElement('div');
             senderSpan.className = 'sender-name';
             senderSpan.textContent = msg.sender;
-            senderSpan.style.color = getColorForSender(msg.sender); // DYNAMIC COLOR
+            senderSpan.style.color = getColorForSender(msg.sender);
             bubble.appendChild(senderSpan);
         }
 
@@ -361,30 +395,23 @@ function renderNextChunk() {
 
                 if (mediaTag) {
                     bubble.appendChild(mediaTag);
-                    
-                    // --- NEW AGGRESSIVE CLEANUP ---
-                    // split().join() forces the code to remove ALL occurrences of the filename, not just the first one
                     textContent = textContent.split(filename).join('');
-                    
-                    // Remove all other WhatsApp attachment artifacts globally
                     textContent = textContent.replace(/\(file attached\)/gi, '')
                                              .replace(/<attached:/gi, '')
                                              .replace(/>/g, '')
-                                             .replace(/• \d+ pages?/gi, '') // Removes stray PDF page counts
+                                             .replace(/• \d+ pages?/gi, '')
                                              .trim();
                 }
             }
         }
 
-        // Only add the text bubble if there is actual text left over!
-        // (Also ignores stray bullet points if WhatsApp left one behind)
         if (textContent && textContent.length > 0 && textContent !== '•') {
             const textSpan = document.createElement('div');
             textSpan.className = 'message-text';
             textSpan.appendChild(formatMessageWithLinks(textContent));
             bubble.appendChild(textSpan);
         }
-                
+        
         const timeSpan = document.createElement('div');
         timeSpan.className = 'message-time';
         timeSpan.textContent = msg.time;
