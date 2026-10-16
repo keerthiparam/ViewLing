@@ -24,7 +24,7 @@
 - [ ] Reduce lag (Load and unload messages)
 - [ ] Sticky dates
 - [x] Color options in group chat
-- [ ] Press ```esc``` to close chat
+- [x] Press ```esc``` to close chat
 - [ ] Option to remove chat
 - [x] Drag n drop
 - [ ] Optimize for all types of devices

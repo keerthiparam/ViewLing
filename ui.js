@@ -51,6 +51,13 @@ window.addEventListener('drop', (e) => {
     }
 });
 
+// 5. Escape Key to Close Chat
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+        closeChat();
+    }
+});
+
 // --- UI Logic: Sidebar List ---
 function renderChatList() {
     chatListContainer.innerHTML = ''; 
@@ -111,6 +118,19 @@ function openChat(chat) {
     if (chat.myUsername) userSelector.value = chat.myUsername;
 
     resetAndRenderChat();
+}
+
+function closeChat() {
+    if (!activeChat) return; // If no chat is open, do nothing
+
+    activeChat = null; // Clear the active chat state
+    
+    // Hide the chat area and show the welcome screen
+    activeChatScreen.classList.add('hidden');
+    welcomeScreen.classList.remove('hidden');
+    
+    // Re-render the sidebar to remove the active highlight color
+    renderChatList(); 
 }
 
 function resetAndRenderChat() {
